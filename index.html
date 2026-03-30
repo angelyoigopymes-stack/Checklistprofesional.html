@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planificador Black & Purple</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <style>
+        :root {
+            --morado: #6a0dad;
+            --negro: #000000;
+            --blanco: #ffffff;
+            --gris-claro: #f4f4f4;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--negro);
+            color: var(--negro);
+            margin: 0;
+            padding: 20px;
+        }
+
+        #app-container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: var(--blanco);
+            padding: 40px;
+            border: 4px solid var(--morado);
+            border-radius: 0; /* Estilo más definido y angular */
+        }
+
+        header {
+            text-align: center;
+            border-bottom: 3px solid var(--negro);
+            margin-bottom: 30px;
+            padding-bottom: 10px;
+        }
+
+        h1 {
+            color: var(--morado);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 0;
+        }
+
+        .mod-date {
+            font-weight: bold;
+            font-size: 0.9em;
+            color: var(--negro);
+            margin-top: 10px;
+        }
+
+        /* Formulario de entrada ampliado */
+        .input-group {
+            background: var(--gris-claro);
+            padding: 20px;
+            border: 2px solid var(--negro);
+            margin-bottom: 30px;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: var(--morado);
+        }
+
+        /* Área de texto de mínimo 200 caracteres visuales */
+        #new-task-text {
+            width: 100%;
+            min-height: 80px;
+            padding: 12px;
+            border: 2px solid var(--negro);
+            box-sizing: border-box;
+            font-size: 1em;
+            margin-bottom: 15px;
+            resize: vertical;
+        }
+
+        .input-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-controls select {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid var(--negro);
+            font-weight: bold;
+        }
+
+        /* Secciones de Tareas */
+        .section {
+            margin-bottom: 25px;
+            border: 2px solid var(--negro);
+        }
+
+        .section-header {
+            background: var(--morado);
+            color: var(--blanco);
+            padding: 10px;
+            margin: 0;
+            font-size: 1.2em;
+            text-transform: uppercase;
+        }
+
+        .task-list {
+            padding: 15px;
+            min-height: 50px;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: flex-start;
+            background: var(--blanco);
+            padding: 12px;
+            margin-bottom: 10px;
+            border: 1px solid var(--morado);
+        }
+
+        .task-checkbox {
+            width: 22px;
+            height: 22px;
+            margin-right: 15px;
+            cursor: pointer;
+            accent-color: var(--morado);
+        }
+
+        .task-label {
+            flex: 1;
+            font-size: 1em;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+
+        .task-note {
+            width: 35%;
+            margin-left: 15px;
+            border: 1px solid var(--negro);
+            padding: 5px;
+        }
+
+        .completed {
+            text-decoration: line-through;
+            color: #888;
+            opacity: 0.6;
+        }
+
+        /* Botonera */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 40px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: 2px solid var(--negro);
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: 0.2s;
+        }
+
+        .btn-new { background: var(--blanco); color: var(--negro); }
+        .btn-add { background: var(--negro); color: var(--blanco); flex: 1; }
+        .btn-save { background: var(--morado); color: var(--blanco); }
+        .btn-export { background: var(--blanco); color: var(--morado); border-color: var(--morado); }
+
+        .btn:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 4px 4px 0 var(--negro);
+        }
+
+        .hide-on-export { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <header>
+        <h1>Planificación Diaria</h1>
+        <div class="mod-date" id="mod-date">Modificación: ---</div>
+    </header>
+
+    <div class="input-group hide-on-export">
+        <label for="new-task-text">Nueva Tarea (Espacio amplio para detalles):</label>
+        <textarea id="new-task-text" placeholder="Describe la tarea aquí (mínimo 200 caracteres de capacidad visual)..."></textarea>
+        
+        <div class="input-controls">
+            <select id="new-task-section">
+                <option value="morning">Mañana</option>
+                <option value="midday">Mediodía</option>
+                <option value="afternoon">Tarde</option>
+            </select>
+            <button class="btn btn-add" onclick="addNewTask()">Añadir Registro</button>
+        </div>
+    </div>
+
+    <div id="capture-area">
+        <div class="section" data-name="Mañana">
+            <h2 class="section-header">Mañana</h2>
+            <div class="task-list" id="list-morning"></div>
+        </div>
+
+        <div class="section" data-name="Mediodía">
+            <h2 class="section-header">Mediodía</h2>
+            <div class="task-list" id="list-midday"></div>
+        </div>
+
+        <div class="section" data-name="Tarde">
+            <h2 class="section-header">Tarde</h2>
+            <div class="task-list" id="list-afternoon"></div>
+        </div>
+    </div>
+
+    <div class="controls hide-on-export">
+        <button class="btn btn-new" onclick="createNewRecord()">Nuevo Registro</button>
+        <button class="btn btn-save" onclick="saveData()">Guardar Datos</button>
+        <button class="btn btn-export" onclick="exportPDF()">PDF</button>
+        <button class="btn btn-export" onclick="exportExcel()">Excel</button>
+        <button class="btn btn-export" onclick="exportJPEG()">JPEG</button>
+    </div>
+</div>
+
+<script>
+    window.onload = () => {
+        const savedData = localStorage.getItem('planner_v3');
+        if (savedData) {
+            const parsed = JSON.parse(savedData);
+            renderTasks(parsed.tasks);
+            document.getElementById('mod-date').innerText = `Modificación: ${parsed.date}`;
+        }
+    };
+
+    function renderTasks(tasks) {
+        document.querySelectorAll('.task-list').forEach(l => l.innerHTML = '');
+        tasks.forEach(t => addTaskToDOM(t.section, t.text, t.done, t.note));
+    }
+
+    function addTaskToDOM(section, text, done = false, note = "") {
+        const container = document.getElementById(`list-${section}`);
+        const div = document.createElement('div');
+        div.className = 'task-item';
+        div.innerHTML = `
+            <input type="checkbox" class="task-checkbox" ${done ? 'checked' : ''} onchange="updateStyle(this)">
+            <span class="task-label ${done ? 'completed' : ''}">${text}</span>
+            <input type="text" class="task-note" placeholder="Notas..." value="${note}">
+        `;
+        container.appendChild(div);
+    }
+
+    function updateStyle(cb) {
+        cb.nextElementSibling.classList.toggle('completed', cb.checked);
+    }
+
+    function addNewTask() {
+        const text = document.getElementById('new-task-text').value;
+        const section = document.getElementById('new-task-section').value;
+        if (!text.trim()) return alert("El campo de texto está vacío");
+        
+        addTaskToDOM(section, text);
+        document.getElementById('new-task-text').value = '';
+    }
+
+    function createNewRecord() {
+        if (confirm("¿Limpiar todo y crear un nuevo registro?")) {
+            document.querySelectorAll('.task-list').forEach(l => l.innerHTML = '');
+            document.getElementById('mod-date').innerText = "Modificación: Nuevo";
+            localStorage.removeItem('planner_v3');
+        }
+    }
+
+    function saveData() {
+        const tasks = [];
+        const dateStr = new Date().toLocaleString('es-ES', { 
+            day: '2-digit', month: '2-digit', year: 'numeric', 
+            hour: '2-digit', minute: '2-digit' 
+        });
+        
+        ['morning', 'midday', 'afternoon'].forEach(sec => {
+            document.querySelectorAll(`#list-${sec} .task-item`).forEach(item => {
+                tasks.push({
+                    section: sec,
+                    text: item.querySelector('.task-label').innerText,
+                    done: item.querySelector('.task-checkbox').checked,
+                    note: item.querySelector('.task-note').value
+                });
+            });
+        });
+
+        localStorage.setItem('planner_v3', JSON.stringify({ date: dateStr, tasks }));
+        document.getElementById('mod-date').innerText = `Modificación: ${dateStr}`;
+        alert("Guardado correctamente");
+    }
+
+    // Exportaciones
+    function exportPDF() {
+        const element = document.getElementById('app-container');
+        document.querySelectorAll('.hide-on-export').forEach(e => e.style.display = 'none');
+        html2pdf().set({
+            margin: 5,
+            filename: 'Plan-Diario.pdf',
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        }).from(element).save().then(() => {
+            document.querySelectorAll('.hide-on-export').forEach(e => e.style.display = '');
+        });
+    }
+
+    function exportExcel() {
+        const rows = [["SECCIÓN", "TAREA", "ESTADO", "NOTAS"]];
+        document.querySelectorAll('.section').forEach(sec => {
+            const sectionName = sec.getAttribute('data-name');
+            sec.querySelectorAll('.task-item').forEach(item => {
+                rows.push([
+                    sectionName,
+                    item.querySelector('.task-label').innerText,
+                    item.querySelector('.task-checkbox').checked ? "Hecho" : "Pendiente",
+                    item.querySelector('.task-note').value
+                ]);
+            });
+        });
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Plan");
+        XLSX.writeFile(wb, "Plan-Diario.xlsx");
+    }
+
+    function exportJPEG() {
+        const element = document.getElementById('app-container');
+        document.querySelectorAll('.hide-on-export').forEach(e => e.style.display = 'none');
+        html2canvas(element, { scale: 2 }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = 'Plan-Diario.jpg';
+            link.href = canvas.toDataURL("image/jpeg");
+            link.click();
+            document.querySelectorAll('.hide-on-export').forEach(e => e.style.display = '');
+        });
+    }
+</script>
+
+</body>
+</html>
